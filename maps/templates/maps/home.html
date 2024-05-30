@@ -1,0 +1,228 @@
+
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Imagery</title>
+    <!-- Подключаем Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.7.0/nouislider.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.7.0/nouislider.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="{% static 'maps/home.css' %}">
+    <link rel="stylesheet" href="{% static 'lightzoom/style.css' %}" type="text/css">
+</head>
+<body>
+    <div class="map-main">
+        <div class="main-sector">
+            <div class="header">
+                <div class="logo">Space</div>
+                <div class="long-lat-button">
+                    <div class="long-lat"><b>Lat:</b> <span id="lat"></span><b>/ Long:</b> <span id="long"></span></div>
+                    <div class="button">
+                        <button onclick="sendCoordinates()">OK</button>
+                    </div>
+                </div>
+            </div>
+            <div id="map"></div>
+        </div>
+        <div class="working-panel">
+            <div id="title">Рабочая панель</div>
+            <div class="subcategories">
+                <a id="filter" href="#">Фильтр</a>
+                <a id="result" href="#">Результат</a>
+                <a id="coef" href="#">Коэффициенты</a>
+            </div>
+            <div class="subcategories-div">
+                <div id="filter-div">
+                    <div class="filter-div-input">
+                        <span id="filter-div-input-title">Диапазон даты</span>
+                        <label for="data-start">Начальная дата</label>
+                        <input id="start-date" type="date">
+                        <label for="data-start">Дата окончания</label>
+                        <input id="end-date" type="date">
+                    </div>
+                    <div class="filter-div-input">
+                        <span id="filter-div-input-title">Облачный покров</span>
+                        <div id="cloud-cover-number">
+                            <input type="text" id="min-value">
+                            <input type="text" id="max-value">
+                        </div>
+                        <div id="slider"></div>
+                        <div id="unkdown">
+                            <div><input id="checkbox-unkdown" type="checkbox"></div>
+                            <span id="checkbox-title">Включать неизвестные</span>
+                        </div>
+                    </div>
+                    <div class="filter-div-input">
+                        <span id="filter-div-input-title">Число результатов</span>
+                        <label for="max-results">Максимальное число результатов</label>
+                        <input type="number" id="max-results" min="0" max="1000" style="width: 100px;">
+                    </div>
+                    <div class="input-div-button">
+                        <button onclick="addFilterButton()" type="submit">Добавить фильтр</button>
+                    </div>
+                </div>
+                <div id="result-div">Результатов пока нет</div>
+                <div id="coef-div">Коэффициенты</div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script type="text/javascript" src="{% static 'lightzoom/lightzoom.js' %}"></script>
+    <script type="text/javascript">jQuery('.lightzoom').lightzoom({speed: 400, viewTitle: true});</script>
+    <script type="module" src="{% static 'js/home.js' %}"></script>
+
+    <!-- <script>
+        // Инициализация карты
+        var map = L.map('map', {
+            center: [0, 0],
+            zoom: 2,
+            zoomControl: false // Отключаем стандартный zoom control
+        });
+    
+        // Добавление OpenStreetMap слоя
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(map);
+    
+        L.control.zoom({
+            position: 'topright' // Позиция: 'topleft', 'topright', 'bottomleft', 'bottomright'
+        }).addTo(map);
+    
+        // Добавление иконки местоположения
+        var initialLatLng = [45, 70];
+        var marker = L.marker(initialLatLng, {draggable: true}).addTo(map);
+    
+        updateCoordinates(initialLatLng[0], initialLatLng[1]);
+    
+        marker.on('drag', function (e) {
+            var latlng = e.target.getLatLng();
+            updateCoordinates(latlng.lat, latlng.lng);
+        });
+    
+        function updateCoordinates(lat, lng) {
+            document.getElementById('lat').innerText = lat.toFixed(3);
+            document.getElementById('long').innerText = lng.toFixed(3);
+        }
+
+        function sendCoordinates() {
+            // Получаем координаты маркера
+            var latlng = marker.getLatLng();
+            var lat = latlng.lat.toFixed(5);
+            var lng = latlng.lng.toFixed(5);
+            // document.getElementById('loader').style.display = 'block';
+            var oldLoader = document.getElementById('loader');
+            if (oldLoader) {
+                oldLoader.remove();
+            }
+            var loader = document.createElement('div');
+            loader.id = 'loader';
+            loader.textContent = 'Loading...';
+            loader.style.display = 'block';
+            document.querySelector('.working-panel').appendChild(loader);
+            fetchData(lat, lng);
+            activateLink(document.getElementById('result'));
+        }
+    
+        function fetchData(lat, lng) {
+            // Отправка данных на сервер
+            fetch('/maps/get_imagery/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    latitude: lat,
+                    longitude: lng
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Обработка полученных данных
+                console.log(data); // Проверьте данные в консоли
+    
+                // Отобразите изображения на странице
+                var imagesDiv = document.getElementById('result-div');
+                imagesDiv.innerHTML = ''; // Очищаем содержимое перед добавлением новых изображений
+    
+                data.imageUrls.forEach(imageUrl => {
+                    var aElement = document.createElement('a');
+                    aElement.class = 'lightzoom';
+                    imagesDiv.appendChild(aElement);
+                    var imgElement = document.createElement('img');
+                    imgElement.src = imageUrl;
+                    imgElement.alt = 'Image';
+                    imgElement.width = '300';
+                    imgElement.height = '300';
+                    aElement.appendChild(imgElement);
+                });
+                document.getElementById('loader').style.display = 'none';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+    
+                // Скрыть элемент загрузки в случае ошибки
+                document.getElementById('loader').style.display = 'none';
+            });
+        }
+    
+        // Функция для получения CSRF токена
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const links = document.querySelectorAll('.subcategories a');
+            const divs = document.querySelectorAll('.subcategories-div > div');
+
+            function activateLink(activeLink) {
+                links.forEach(link => {
+                    if (link === activeLink) {
+                        link.classList.add('active');
+                    } else {
+                        link.classList.remove('active');
+                    }
+                });
+            }
+
+            links.forEach(link => {
+                link.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    const targetId = link.id + '-div';
+                    divs.forEach(div => {
+                        if (div.id === targetId) {
+                            div.style.display = 'flex';
+                        } else {
+                            div.style.display = 'none';
+                        }
+                    });
+                    activateLink(link);
+                });
+            });
+
+            // Изначально активируем ссылку "Фильтр"
+            activateLink(document.getElementById('filter'));
+        });
+    </script> -->
+</body>
+</html>

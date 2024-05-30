@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.7.0/nouislider.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.7.0/nouislider.min.js"></script>
+
+    <title>Двусторонний ползунок</title>
+    <style>
+        .filter-div-input {
+            margin-bottom: 20px;
+        }
+
+        #filter-div-input-title {
+            font-weight: bold;
+        }
+
+        #current-values {
+            margin-top: -20px;
+        }
+
+        #current-values span {
+            margin: 0 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="slider"></div>
+<div>
+    <span>Минимальное значение: </span>
+    <input type="text" id="min-value">
+</div>
+<div>
+    <span>Максимальное значение: </span>
+    <input type="text" id="max-value">
+</div>
+<script>
+    var slider = document.getElementById('slider');
+    var minValue = document.getElementById('min-value');
+    var maxValue = document.getElementById('max-value');
+
+    noUiSlider.create(slider, {
+        start: [0, 100], // Начальные значения для бегунков
+        connect: true, // Связь между бегунками
+        range: {
+            'min': 0,
+            'max': 100
+        }
+    });
+
+    slider.noUiSlider.on('update', function (values, handle) {
+        if (handle === 0) {
+            minValue.value = values[0];
+        }
+        if (handle === 1) {
+            maxValue.value = values[1];
+        }
+    });
+</script>
+
+</body>
+</html>
