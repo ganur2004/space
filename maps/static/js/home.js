@@ -1,19 +1,28 @@
 document.addEventListener('DOMContentLoaded', function() {
+    var rectangle;
+    var rectangleCoordinates = [];
+    var imageUrlList = [];
+    // var rectangleCoordinate;
+    var displayStates = {};
+    var imageInfo = {};
+    var selectedImages = {}
+    var selectedLayers = {};
+
     // Инициализация карты
     var map = L.map('map', {
         center: [45, 70],
-        zoom: 3,
-        zoomControl: false // Отключаем стандартный zoom control
+        zoom: 5,
+        zoomControl: false
     });
 
     // Добавление OpenStreetMap слоя
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        minZoom: 1,
+        maxZoom: 12,
+        minZoom: 4,
     }).addTo(map);
 
     L.control.zoom({
-        position: 'topright' // Позиция: 'topleft', 'topright', 'bottomleft', 'bottomright'
+        position: 'topright'
     }).addTo(map);
 
     // Добавление иконки местоположения
@@ -25,14 +34,78 @@ document.addEventListener('DOMContentLoaded', function() {
     marker.on('drag', function (e) {
         var latlng = e.target.getLatLng();
         updateCoordinates(latlng.lat, latlng.lng);
+        if (rectangle) {
+            rectangle.remove();
+        }
+        createRectangle(latlng.lat, latlng.lng, map.getZoom());
+    });
+
+    map.on('zoomend', function() {
+        var latlng = marker.getLatLng();
+        createRectangle(latlng.lat, latlng.lng, map.getZoom());
     });
 
     function updateCoordinates(lat, lng) {
-        document.getElementById('lat').innerText = lat.toFixed(3);
-        document.getElementById('long').innerText = lng.toFixed(3);
+        document.getElementById('lat').value = lat.toFixed(3);
+        document.getElementById('long').value = lng.toFixed(3);
+    }
+
+    function updateMarkerPosition(lat, lng) {
+        var newLatLng = new L.LatLng(lat, lng);
+        marker.setLatLng(newLatLng);
+        map.setView(newLatLng);
+        if (rectangle) {
+            rectangle.remove();
+        }
+        createRectangle(lat, lng, map.getZoom());
+    }
+
+    // Обработчики событий для полей ввода
+    document.getElementById('lat').addEventListener('input', function () {
+        var lat = parseFloat(this.value);
+        var lng = parseFloat(document.getElementById('long').value);
+        updateMarkerPosition(lat, lng);
+    });
+
+    document.getElementById('long').addEventListener('input', function () {
+        var lat = parseFloat(document.getElementById('lat').value);
+        var lng = parseFloat(this.value);
+        updateMarkerPosition(lat, lng);
+    });
+
+    function createCoordinates(coordinate, displayId, imageUrlList) {
+        var coordinates = [
+            [coordinate[0][1], coordinate[0][0]],
+            [coordinate[1][1], coordinate[1][0]],
+            [coordinate[2][1], coordinate[2][0]],
+            [coordinate[3][1], coordinate[3][0]],
+            [coordinate[4][1], coordinate[4][0]],
+        ]; 
+        var rectangleCoordinate = L.polygon(coordinates, { color: 'transparent', displayId: displayId, imageUrlList: imageUrlList, coordinates: coordinates }).addTo(map);
+        rectangleCoordinates.push(rectangleCoordinate);
+    }
+
+    function createRectangle(lat, long, zoomLevel){
+        if (rectangle) {
+            map.removeLayer(rectangle);
+        }
+
+        var size = 1 / Math.pow(2, zoomLevel - 7);
+        fetchDataSize(size);
+
+        rectangle = L.rectangle([
+            [lat - size/2, long - size],
+            [lat + size/2, long + size]
+        ], {color: "red", weight: 1}).addTo(map);
+        
     }
 
     function sendCoordinates() {
+        deleteLayer();
+        deleteRectangle();
+        deleteRectanleCoordinates();
+        // deleteRectangle();
+
         var latlng = marker.getLatLng();
         var lat = latlng.lat.toFixed(5);
         var lng = latlng.lng.toFixed(5);
@@ -49,8 +122,8 @@ document.addEventListener('DOMContentLoaded', function() {
         activateLink(document.getElementById('result'));
     }
 
+    // Отправка данных на сервер
     function fetchData(lat, lng) {
-        // Отправка данных на сервер
         fetch('/maps/get_imagery/', {
             method: 'POST',
             headers: {
@@ -64,57 +137,264 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            // Обработка полученных данных
-            console.log(data); // Проверьте данные в консоли
-
-            // Отобразите изображения на странице
             var imagesDiv = document.getElementById('result-div');
-            imagesDiv.innerHTML = ''; // Очищаем содержимое перед добавлением новых изображений
+            imagesDiv.innerHTML = '';
 
-            data.imageUrls.forEach(imageUrl => {
-                var aElement = document.createElement('a');
-                aElement.className = 'lightzoom';
-                imagesDiv.appendChild(aElement);
-                var imgElement = document.createElement('img');
-                imgElement.src = imageUrl;
-                imgElement.alt = 'Image';
-                imgElement.width = '300';
-                imgElement.height = '300';
-                aElement.appendChild(imgElement);
-            });
+            for (var displayId in data.screenInfo) {
+                if (displayId) {
+                    var screenInfo = data.screenInfo[displayId];
+                    var spatialCoverageDisplayId = screenInfo.screenInfoDate[0].spatialCoverage;
+                    var folderDivWithCheckbox = document.createElement('div');
+                    folderDivWithCheckbox.className = 'folder-with-checkbox';
+                    imagesDiv.appendChild(folderDivWithCheckbox);
+                    var inputCheckbox;
+                    var folderDiv = document.createElement('div');
+                    folderDiv.className = 'folder';
+                    folderDivWithCheckbox.appendChild(folderDiv);
+            
+                    var folderHeader = document.createElement('div');
+                    folderHeader.className = 'folder-header';
+                    folderHeader.innerHTML = displayId + ' <span class="arrow-down fas fa-caret-down"></span>';
+                    folderDiv.appendChild(folderHeader);
+                    var imagesContainer = document.createElement('div');
+                    imagesContainer.className = 'images-container';
+                    folderDiv.appendChild(imagesContainer);
+
+                    imageUrlList = [];
+                    var isFirstImage = true;
+
+                    screenInfo.screenInfoDate.forEach(screen => {
+                        var imageUrl = screen.imageUrl;
+                        var overlayPath = screen.overlayPath;
+                        var spatialCoverage = screen.spatialCoverage;
+                        var spatialBounds = screen.spatialBounds;
+                        var publishDate = screen.publishDate;
+                        var cloudCover = screen.cloudCover;
+                        var overlaySpec = screen.overlaySpec;
+                        var displayImageId = screen.displayImagesId;
+                        imageUrlList.push(imageUrl);
+
+                        var info = {
+                            imageUrl: imageUrl,
+                            overlayPath: overlayPath,
+                            spatialCoverage: spatialCoverage,
+                            spatialBounds: spatialBounds
+                        };
+
+                        imageInfo[displayImageId] = info;
+
+                        var imagesContainerChild = document.createElement('div');
+                        imagesContainerChild.className = 'images-container-child';
+                        imagesContainerChild.id = displayImageId;
+                        imagesContainer.appendChild(imagesContainerChild);
+
+                        inputCheckbox = document.createElement('input');
+                        inputCheckbox.type = 'checkbox';
+                        imagesContainerChild.appendChild(inputCheckbox);
+
+                        var imagesContainerElement = document.createElement('div');
+                        imagesContainerElement.className = 'images-container-element';
+                        imagesContainerChild.appendChild(imagesContainerElement);
+
+                        var imageWithCloud = document.createElement('div');
+                        imageWithCloud.className = 'images-with-cloud';
+                        imagesContainerElement.appendChild(imageWithCloud);
+
+                        var imgElement = document.createElement('img');
+                        imgElement.src = imageUrl;
+                        imgElement.alt = 'Image';
+                        imgElement.width = '270';
+                        imgElement.height = '270';
+                        imageWithCloud.appendChild(imgElement);
+
+                        var cloudinessDiv = document.createElement('div');
+                        cloudinessDiv.className = 'cloudiness-scale';
+                        imageWithCloud.appendChild(cloudinessDiv);
+
+                        var scaleLabel = document.createElement('div');
+                        scaleLabel.className = 'scale-label';
+
+                        var icon = document.createElement('i');
+                        icon.className = 'fas fa-cloud';
+
+                        scaleLabel.appendChild(icon);
+                        scaleLabel.appendChild(document.createTextNode(' ' + cloudCover + "%"));
+
+                        cloudinessDiv.appendChild(scaleLabel);
+
+                        var scaleBarContainer = document.createElement('div');
+                        scaleBarContainer.className = 'scale-bar-container';
+                        cloudinessDiv.appendChild(scaleBarContainer);
+
+                        var scaleBar = document.createElement('div');
+                        scaleBar.className = 'scale-bar';
+                        scaleBar.style.height =  cloudCover + "%";
+                        scaleBarContainer.appendChild(scaleBar);
+
+                        imagesContainerElement.appendChild(imageWithCloud);
+
+                        var dateElement = document.createElement('span');
+                        dateElement.textContent = publishDate;
+                        imagesContainerElement.appendChild(dateElement);
+
+                        if (isFirstImage) {
+                            var bounds = L.latLngBounds(
+                                L.latLng(spatialBounds[0][1]+0.5, spatialBounds[0][0]+0.5),
+                                L.latLng(spatialBounds[2][1]-0.5, spatialBounds[2][0]-0.5) 
+                            );
+                            inputCheckbox.checked = true;
+                            selectedImages[displayImageId] = info;
+                            isFirstImage = false;
+                            var layer = L.tileLayer(overlayPath, bounds).addTo(map);
+                            selectedLayers[displayImageId] = layer;
+                        }
+
+                        inputCheckbox.addEventListener('change', function() {
+                            var displayImageId = this.parentElement.id;
+    
+                            if (this.checked) {
+                                selectedImages[displayImageId] = imageInfo[displayImageId];
+                            } else {
+                                delete selectedImages[displayImageId];
+                                if (selectedLayers[displayImageId]) {
+                                    map.removeLayer(selectedLayers[displayImageId]);
+                                    delete selectedLayers[displayImageId];
+                                }
+                            }
+                            updateMap();
+                        });
+                    }) 
+
+                    folderHeader.addEventListener('click', function() {
+                        var imagesContainer = this.nextElementSibling;
+                        var displayStyle = window.getComputedStyle(imagesContainer).getPropertyValue('display');
+                        var displayIdFroRectangle = this.textContent.split(' ')[0];
+                        var parentFolder = this.parentElement;
+                        var folderWithCheckbox = parentFolder.parentElement;
+  
+                        if (displayStyle === 'none') {
+                            imagesContainer.style.display = 'flex';
+                            this.id = 'active-folder';
+                            this.innerHTML = displayIdFroRectangle + ' <span class="arrow-down fas fa-caret-up"></span>';
+                            showRectangle(displayIdFroRectangle);
+                        } else {
+                            imagesContainer.style.display = 'none';
+                            this.id = '';
+                            this.innerHTML = displayIdFroRectangle + ' <span class="arrow-down fas fa-caret-down"></span>';
+                            hideRectangle(displayIdFroRectangle);
+                        }
+                    });
+
+                    createCoordinates(spatialCoverageDisplayId, displayId, imageUrlList);
+                }
+            }
             document.getElementById('loader').style.display = 'none';
         })
         .catch(error => {
             console.error('Error:', error);
-
-            // Скрыть элемент загрузки в случае ошибки
             document.getElementById('loader').style.display = 'none';
         });
     }
 
+    function deleteRectangle() {
+        for (var displayId in displayStates) {
+            hideRectangle(displayId);
+        }
+        displayStates = [];
+    }
+
+    function deleteRectanleCoordinates() {
+        rectangleCoordinates.forEach(function(rectangle) {
+            rectangle.remove();
+        });
+        rectangleCoordinates = [];
+    }
+
+    function deleteLayer() {
+        for (var displayImageId in selectedLayers) {
+            var layerToRemove = selectedLayers[displayImageId];
+            if (layerToRemove) {
+                map.removeLayer(layerToRemove);
+                delete selectedLayers[displayImageId];
+            }
+        }
+        selectedImages = {};
+        selectedLayers = {};
+    }
+
+    function updateMap() {
+        for (var displayImageId in selectedImages) {
+            var imageInfo = selectedImages[displayImageId];
+            var overlayPath = imageInfo.overlayPath;
+            var spatialCoverage = imageInfo.spatialCoverage;
+            var spatialBounds = imageInfo.spatialBounds;
+
+            var bounds = L.latLngBounds(
+                L.latLng(spatialBounds[0][1]+0.5, spatialBounds[0][0]+0.5),
+                L.latLng(spatialBounds[2][1]-0.5, spatialBounds[2][0]-0.5)
+            );
+
+            if (!selectedLayers[displayImageId]) {
+                var layer = L.tileLayer(overlayPath, bounds).addTo(map);
+                selectedLayers[displayImageId] = layer;
+            } else {
+                selectedLayers[displayImageId].setUrl(overlayPath);
+            }
+        }
+    }
+
+    function showRectangle(displayId) {
+        if (rectangle) {
+            map.removeLayer(rectangle);
+        }
+        rectangleCoordinates.forEach(function(rectangle) {
+            if (rectangle.options.displayId === displayId) {
+                if (!displayStates[displayId]) {
+                    displayStates[displayId] = {
+                        currentImageIndex: 0,
+                        imageUrlList: rectangle.options.imageUrlList
+                    };
+                }
+    
+                var state = displayStates[displayId];
+                var imageBounds = rectangle.options.coordinates; // Примерные координаты
+    
+                rectangle.polygon = L.polygon(imageBounds, {
+                    fillOpacity: 0,
+                    color: 'red',
+                    weight: 2
+                }).addTo(map);
+            }
+        });
+    }
+
+    function hideRectangle(displayId) {
+        rectangleCoordinates.forEach(function(rectangle) {
+            if (rectangle.options.displayId === displayId) {
+                if (rectangle.imageOverlay) {
+                    map.removeLayer(rectangle.imageOverlay);
+                }
+                if (rectangle.polygon) {
+                    map.removeLayer(rectangle.polygon);
+                }
+            }
+        });
+    }
+
     function addFilterButton() {
-        // Собираем данные из полей ввода
         var startDate = document.getElementById('start-date').value;
-        console.log(startDate);
         var endDate = document.getElementById('end-date').value;
-        console.log(endDate);
         var minCloudCover = document.getElementById('min-value').value;
-        console.log(minCloudCover);
         var maxCloudCover = document.getElementById('max-value').value;
-        console.log(maxCloudCover);
         var includeUnknown = document.getElementById('checkbox-unkdown').checked;
-        console.log(includeUnknown);
         var maxResults = document.getElementById('max-results').value;
-        console.log(maxResults);
     
-        // Устанавливаем значения по умолчанию для фильтров, если они не заполнены
-        startDate = startDate || '2024-01-01'; // Начальная дата по умолчанию
-        endDate = endDate || '2024-12-31'; // Конечная дата по умолчанию
-        minCloudCover = minCloudCover || 0; // Минимальный облачный покров по умолчанию
-        maxCloudCover = maxCloudCover || 100; // Максимальный облачный покров по умолчанию
-        maxResults = maxResults || 1000; // Максимальное число результатов по умолчанию
-    
-        // Создаем объект с данными фильтра
+        startDate = startDate || '2024-01-01';
+        endDate = endDate || '2024-12-31';
+        minCloudCover = minCloudCover || 0;
+        maxCloudCover = maxCloudCover || 100;
+        maxResults = maxResults || 1000;
+
         var filter = {
             startDate: startDate,
             endDate: endDate,
@@ -127,8 +407,8 @@ document.addEventListener('DOMContentLoaded', function() {
         fetchDataFilter(filter)
     }
 
+    // Отправка данных на сервер
     function fetchDataFilter(filters) {
-        // Отправка данных на сервер
         fetch('/maps/get_filters/', {
             method: 'POST',
             headers: {
@@ -136,7 +416,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'X-CSRFToken': getCookie('csrftoken')
             },
             body: JSON.stringify({
-                filters: filters // Передаем данные фильтров
+                filters: filters
             })
         })
         .then(response => response.json())
@@ -144,6 +424,36 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error:', error);
         });
     }
+
+    // Отправка данных на сервер
+    function fetchDataSize(size) {
+        fetch('/maps/get_size/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                size: size
+            })
+        })
+        .then(response => response.json())
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+
+    function handleButtonClick() {
+        addFilterButton();
+        sendCoordinates();
+    }
+
+    document.getElementById('start-date').addEventListener('change', addFilterButton);
+    document.getElementById('end-date').addEventListener('change', addFilterButton);
+    document.getElementById('min-value').addEventListener('input', addFilterButton);
+    document.getElementById('max-value').addEventListener('input', addFilterButton);
+    document.getElementById('checkbox-unkdown').addEventListener('change', addFilterButton);
+    document.getElementById('max-results').addEventListener('input', addFilterButton);
 
     // Функция для получения CSRF токена
     function getCookie(name) {
@@ -190,52 +500,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Изначально активируем ссылку "Фильтр"
     activateLink(document.getElementById('filter'));
 
     // Экспортируем функции для использования в других скриптах
     window.sendCoordinates = sendCoordinates;
     window.addFilterButton = addFilterButton;
-
-    // var slider = document.getElementById('slider');
-    // var minValue = document.getElementById('min-value');
-    // var maxValue = document.getElementById('max-value');
-
-    // noUiSlider.create(slider, {
-    //     start: [0, 100], // Начальные значения для бегунков
-    //     connect: true, // Связь между бегунками
-    //     range: {
-    //         'min': 0,
-    //         'max': 100
-    //     }
-    // });
-
-    // slider.noUiSlider.on('update', function (values, handle) {
-    //     if (handle === 0) {
-    //         minValue.value = values[0];
-    //     }
-    //     if (handle === 1) {
-    //         maxValue.value = values[1];
-    //     }
-    // });
+    window.handleButtonClick = handleButtonClick;
 
     var slider = document.getElementById('slider');
     var minValue = document.getElementById('min-value');
     var maxValue = document.getElementById('max-value');
 
     noUiSlider.create(slider, {
-        start: [0, 100], // Начальные значения для бегунков
-        connect: true, // Связь между бегунками
+        start: [0, 100], 
+        connect: true,
         range: {
             'min': 0,
             'max': 100
         },
         format: {
             to: function (value) {
-                return Math.round(value); // Округляем значение до целого числа
+                return Math.round(value); 
             },
             from: function (value) {
-                return parseFloat(value); // Преобразуем обратно в число с плавающей запятой
+                return parseFloat(value);
             }
         }
     });

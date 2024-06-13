@@ -43,7 +43,6 @@ body {
 .long-lat {
     flex: 1;
     display: flex;
-    justify-content: end;
     align-items: center;
 }
 
@@ -156,7 +155,7 @@ body {
     font-weight: bold;
     margin-bottom: 10px;
     margin-left: 10px;
-    font-size: 22px;
+    font-size: 20px;
 }
 
 #filter-div {
@@ -238,4 +237,126 @@ body {
 
 #result-div {
     overflow-y: scroll;
+}
+
+.rectangle-icon {
+    pointer-events: none; /* Чтобы маркер не перекрывал события на прямоугольнике */
+}
+
+.rectangle-image {
+    pointer-events: none; /* Чтобы изображение не перекрывало события на прямоугольнике */
+}
+
+/* Стили для элементов папок */
+.folder {
+    border: 1px solid #ccc;
+    width: 95%;
+    border-radius: 10px;
+    padding: 5px;
+    margin-left: 5px;
+}
+
+/* Стили для заголовка папки */
+.folder-header {
+    background-color: #f0f0f0;
+    padding: 5px;
+    cursor: pointer;
+    border-radius: 5px;
+    background-color: white;
+}
+
+.folder-header:hover, .folder-header:active {
+    background-color: #0691fc;
+    color: white;
+}
+
+/* Стили для контейнера изображений */
+.images-container {
+    display: none;
+    flex-wrap: wrap;
+    padding: 5px;
+    overflow: hidden;
+    transition: height 0.3s ease;
+    justify-content: center;
+}
+
+/* Стили для изображений */
+
+.images-container img {
+    margin-right: 5px;
+    margin-bottom: 5px;
+}
+
+#active-folder {
+    background-color: #0691fc;
+    color: white;
+}
+
+.folder-with-checkbox {
+    width: 100%;
+    height: fit-content;
+    display: flex;
+    flex-direction: row;
+    margin-bottom: 10px;
+}
+
+.cloudiness-scale {
+    position: relative;
+    /* bottom: 10px;
+    height: 100%;
+    margin-top: 10px; */
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.scale-bar {
+    width: 100%;
+    background-color: #0691fc;
+    position: absolute;
+    bottom: 0;
+}
+
+.scale-bar-container {
+    position: relative;
+    height: 100%;
+    width: 20px;
+    border: 1px solid black;
+    margin-bottom: 5px;
+}
+
+.scale-label {
+    font-size: 12px;
+    color: black; /* Цвет текста */
+}
+
+.images-container-element {
+    display: flex;
+    flex-direction: column;
+}
+
+.images-with-cloud {
+    display: flex;
+    flex-direction: row;
+}
+
+#bottom-panel {
+    display: none;
+    position: absolute;
+    z-index: 99;
+    bottom: 0;
+    right: 30vw;
+    background-color: white;
+    color: black;
+    padding: 20px;
+    width: fit-content;
+    /* right: 50px; */
+    margin-bottom: 5px;
+}
+
+.images-container-child {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 10px;
 }

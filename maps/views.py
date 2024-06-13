@@ -10,10 +10,10 @@ import re
 import os
 from django.shortcuts import render
 from django.http import JsonResponse
+from datetime import datetime
 
 def home(request):
     result = get_imagery(request)
-    print("Result: ", result)
     return render(request, 'maps/home.html', {
         "imageUrls": result
     } )
@@ -25,29 +25,20 @@ def get_imagery(request):
         latitude = float(data.get('latitude'))
         longitude = float(data.get('longitude'))
         stored_filters = request.session.get('filters', {})
+        size = request.session.get('size', {})
+        current_date = datetime.now().strftime('%Y-%m-%d')
 
         startDate = stored_filters.get('startDate', '2024-01-01')
-        endDate = stored_filters.get('endDate', '2024-12-31')
+        endDate = stored_filters.get('endDate', current_date)
         minCloudCover = int(stored_filters.get('minCloudCover', 0))
         maxCloudCover = int(stored_filters.get('maxCloudCover', 100))
         includeUnknown = bool(stored_filters.get('includeUnknown', False))
         maxResults = int(stored_filters.get('maxResults', 1000))
-        print("Latitude: ", latitude)
-        print("Longitude: ", longitude)
-        print("Start date: ", startDate)
-        print("end date: ", endDate )
-        print("minCloud: ", minCloudCover)
-        print("maxCloud: ", maxCloudCover)
-        print("includeUnk: ", includeUnknown)
-        print("maxResults: ", maxResults)
-        # response = requests.get(api_url)
         print("\nRunning Scripts...\n")
     
         global serviceUrl 
         serviceUrl = "https://m2m.cr.usgs.gov/api/api/json/stable/"
         
-        # login
-        # payload = {'username' : username, 'password' : password}
         payload = {'username' : 'Nurmat', 'password' : 'Gannur2004ka@'}
         
         apiKey = sendRequest(serviceUrl + "login", payload)
@@ -58,8 +49,8 @@ def get_imagery(request):
         #datasetName = "gls_all"
         
         spatialFilter =  {'filterType' : "mbr",
-                        'lowerLeft' : {'latitude' : latitude - 1, 'longitude' : longitude - 1},
-                        'upperRight' : { 'latitude' : latitude + 1, 'longitude' : longitude + 1}}
+                        'lowerLeft' : {'latitude' : latitude - size/2, 'longitude' : longitude - size},
+                        'upperRight' : { 'latitude' : latitude + size/2, 'longitude' : longitude + size}}
                         
         temporalFilter = {'start' : startDate, 'end' : endDate}
         
@@ -74,15 +65,15 @@ def get_imagery(request):
 
         for dataset in datasets:
         
-        # Because I've ran this before I know that I want GLS_ALL, I don't want to download anything I don't
-        # want so we will skip any other datasets that might be found, logging it incase I want to look into
-        # downloading that data in the future.
             if dataset['datasetAlias'] != datasetName:
                 print("Found dataset " + dataset['collectionName'] + " but skipping it.\n")
                 continue
-                
-            # I don't want to limit my results, but using the dataset-filters request, you can
-            # find additional filters
+
+            payloadDataset = {'datasetId': dataset['datasetId']}
+
+            datasetId = sendRequest(serviceUrl + "dataset-browse", payloadDataset, apiKey)
+
+            overlaySpec = datasetId[0]['overlaySpec']
             
             acquisitionFilter = {"end": endDate,
                                 "start": startDate }   
@@ -97,30 +88,88 @@ def get_imagery(request):
                                                     'acquisitionFilter' : acquisitionFilter,
                                                     'cloudCoverFilter' : cloudCoverFilter}}
             
-            # Now I need to run a scene search to find data to download
             print("Searching scenes...\n\n")   
             
             scenes = sendRequest(serviceUrl + "scene-search", payload, apiKey)
 
             if scenes['recordsReturned'] > 0:
                 imageUrls = []
+                imageCoordinates = []
+                entityId = []
+                screenInfo = {}
                 for result in scenes['results']:
-                    # Проверяем, что список 'browse' не пустой
-                    if 'browse' in result and result['browse']:
-                        print("Photo url: ", result['browse'][0]['browsePath'])
-                        imageUrls.append(result['browse'][0]['browsePath'])
+                    imageCoordinate = []
+                    screenInfoDate = {}
+                    imageUrl = None
+                    publishDate = None
+                    spatialCoverage = None
+                    overlayPath = None
+                    
+                    if 'publishDate' in result and result['publishDate']:
+                        #print("PublishDate: ", result['publishDate'])
+                        publishDate = result['publishDate']
+                        
+                    if 'displayId' in result and result['displayId']:
+                        extractDisplayId = extract_number(result['displayId'])
+                        if extractDisplayId:
+                            #print("Display: ", extractDisplayId)
+                            displayId = result['displayId']
+                           # print("Display id: ", displayId)
+                            if 'cloudCover' in result and result['cloudCover']:
+                                cloudCover = result['cloudCover'] 
+                            else:
+                                cloudCover = 0
 
-        return JsonResponse({'imageUrls': imageUrls})
-        
-            # Did we find anything?
-            # if scenes['recordsReturned'] > 0:
-            #     # Aggregate a list of scene ids
-            #     sceneIds = []
-            #     for result in scenes['results']:
-            #         print("Photo url: ", result['browse'][0]['browsePath'])
+                            if 'browse' in result and result['browse']:
+                                # print("Photo url: ", result['browse'][0]['overlayPath'])
+                                overlayPath = result['browse'][0]['overlayPath']
+
+                            if 'browse' in result and result['browse']:
+                                # print("Photo url: ", result['browse'][0]['browsePath'])
+                                imageUrl = result['browse'][0]['browsePath']
+                                print(result['browse'], end="\n\n\n")
+                            
+                            if 'spatialBounds' in result and result['spatialBounds']:
+                                #print("Coordinates: ", result['spatialCoverage']['coordinates'][0])
+                                spatialBounds = result['spatialBounds']['coordinates'][0]
+
+                            if 'spatialCoverage' in result and result['spatialCoverage']:
+                                #print("Coordinates: ", result['spatialCoverage']['coordinates'][0])
+                                spatialCoverage = result['spatialCoverage']['coordinates'][0]
+                            # print("Cloud cover: ", cloudCover)
+                                
+                            # Собираем данные для screenInfoDate
+                            screenInfoDate = {
+                                'overlaySpec': overlaySpec, 
+                                'overlayPath': overlayPath,
+                                'imageUrl': imageUrl,
+                                'spatialCoverage': spatialCoverage,
+                                'publishDate': publishDate,
+                                'cloudCover': cloudCover,
+                                'displayImagesId': displayId,
+                                'spatialBounds': spatialBounds
+                            }
+                            
+                            # Обновляем данные в screenInfo для текущего extractDisplayId
+                            if extractDisplayId in screenInfo:
+                                screenInfo[extractDisplayId]['screenInfoDate'].append(screenInfoDate)
+                            else:
+                                screenInfo[extractDisplayId] = {
+                                    'screenInfoDate': [screenInfoDate]
+                                }
+                    
+
+        return JsonResponse({'screenInfo': screenInfo})
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=405)
 
+def extract_number(display_id):
+    # Используем регулярное выражение для извлечения числа 153029
+    import re
+    match = re.search(r'\d{6}', display_id)
+    if match:
+        return match.group(0)
+    return None
 
 
 def sendRequest(url, data, apiKey = None):  
@@ -175,5 +224,15 @@ def get_filters(request):
         
         filters = data.get('filters', {})
         request.session['filters'] = filters
+
+        return JsonResponse({'success': True})
+    
+def get_size(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        
+        size = data.get('size', {})
+        request.session['size'] = size
+        
 
         return JsonResponse({'success': True})
