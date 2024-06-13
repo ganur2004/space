@@ -69,8 +69,44 @@
                         <button onclick="handleButtonClick()" type="submit">Запросить данные</button>
                     </div>
                 </div>
-                <div id="result-div">Результатов пока нет</div>
-                <div id="coef-div">Коэффициенты</div>
+                <div id="result-div">
+                    <div class="filter-div-input">
+                        <span id="filter-div-input-title">Выберите расчет</span>
+                        <select name="select-bands" id="select-bands">
+                            <option value="reflectivecolor">Reflective Color</option>
+                            <option value="thermalbrowse">Thermal Browse - Band 10</option>
+                            <option value="qualitybrowse">Quality Browse</option>
+                            <option value="cir">Цветное инфракрасное изображение - каналы 5, 4, 3</option>
+                            <option value="urban">Ложные цвета для городских территорий - каналы 7, 6, 5</option>
+                            <option value="vegetationanalysis">Ложные цвета для анализа растительности - каналы 6, 5, 4</option>
+                            <option value="naturalcolor">Естественный цвет - каналы 4, 3, 2</option>
+                            <option value="nir">Ближний инфракрасный - канал 5</option>
+                            <option value="nbr">Нормализованный коэффициент ожогов</option>
+                            <option value="ndmi">Нормализованный индекс различия влаги</option>
+                            <option value="ndsi">Нормализованный индекс различия снега</option>
+                            <option value="ndvi">Нормализованный индекс различия вегетации</option>
+                            <option value="savi">Индекс коррекции почвы вегетацией</option>
+                        </select>
+                    </div>
+                    <div id="result-div-images">Результатов пока нет</div>
+                </div>
+                <div id="coef-div">
+                    <div class="filter-div-input">
+                        <span id="filter-div-input-title">Выберите расчет</span>
+                        <select name="select-bands" id="select-bands">
+                            <option value="cir">Цветное инфракрасное изображение - каналы 5, 4, 3</option>
+                            <option value="urban">Ложные цвета для городских территорий - каналы 7, 6, 5</option>
+                            <option value="vegetationanalysis">Ложные цвета для анализа растительности - каналы 6, 5, 4</option>
+                            <option value="naturalcolor">Естественный цвет - каналы 4, 3, 2</option>
+                            <option value="nir">Ближний инфракрасный - канал 5</option>
+                            <option value="nbr">Нормализованный коэффициент ожогов</option>
+                            <option value="ndmi">Нормализованный индекс различия влаги</option>
+                            <option value="ndsi">Нормализованный индекс различия снега</option>
+                            <option value="ndvi">Нормализованный индекс различия вегетации</option>
+                            <option value="savi">Индекс коррекции почвы вегетацией</option>
+                        </select>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

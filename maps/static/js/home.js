@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            var imagesDiv = document.getElementById('result-div');
+            var imagesDiv = document.getElementById('result-div-images');
             imagesDiv.innerHTML = '';
 
             for (var displayId in data.screenInfo) {
@@ -444,8 +444,40 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function handleButtonClick() {
+        var selectElement = document.getElementById('select-bands');
+        selectElement.selectedIndex = 0;
         addFilterButton();
+        selectBands();
         sendCoordinates();
+    }
+
+    function selectBands() {
+        var selectBand = document.getElementById('select-bands').value;
+        selectBand = selectBand || "reflectivecolor";
+        console.log(selectBand);
+        fetchDataBand(selectBand);
+    }
+
+    function fetchDataBand(band) {
+        fetch('/maps/get_band/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                band: band
+            })
+        })
+        .then(data => {
+            // Обновить снимки на карте с новыми данными из 'data'
+            // Пример:
+            updateMap();
+            sendCoordinates();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
     }
 
     document.getElementById('start-date').addEventListener('change', addFilterButton);
@@ -454,6 +486,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('max-value').addEventListener('input', addFilterButton);
     document.getElementById('checkbox-unkdown').addEventListener('change', addFilterButton);
     document.getElementById('max-results').addEventListener('input', addFilterButton);
+    document.getElementById('select-bands').addEventListener('change', selectBands);
 
     // Функция для получения CSRF токена
     function getCookie(name) {

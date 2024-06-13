@@ -26,7 +26,25 @@ def get_imagery(request):
         longitude = float(data.get('longitude'))
         stored_filters = request.session.get('filters', {})
         size = request.session.get('size', {})
+        band = request.session.get('band', {})
+        print("size: ", size)
+        print("bandband: ", band)
         current_date = datetime.now().strftime('%Y-%m-%d')
+        bandList = {
+            "reflectivecolor": 0,
+            "thermalbrowse": 1,
+            "qualitybrowse": 2,
+            "cir": 3,
+            "urban": 4,
+            "vegetationanalysis": 5,
+            "naturalcolor": 6,
+            "nir": 7,
+            "nbr": 8,
+            "ndmi": 9,
+            "ndsi": 10,
+            "ndvi": 11,
+            "savi": 12
+        }
 
         startDate = stored_filters.get('startDate', '2024-01-01')
         endDate = stored_filters.get('endDate', current_date)
@@ -104,6 +122,7 @@ def get_imagery(request):
                     publishDate = None
                     spatialCoverage = None
                     overlayPath = None
+                    overlayPathBands = None
                     
                     if 'publishDate' in result and result['publishDate']:
                         #print("PublishDate: ", result['publishDate'])
@@ -122,12 +141,12 @@ def get_imagery(request):
 
                             if 'browse' in result and result['browse']:
                                 # print("Photo url: ", result['browse'][0]['overlayPath'])
-                                overlayPath = result['browse'][0]['overlayPath']
+                                overlayPath = result['browse'][bandList[band]]['overlayPath']
 
                             if 'browse' in result and result['browse']:
                                 # print("Photo url: ", result['browse'][0]['browsePath'])
                                 imageUrl = result['browse'][0]['browsePath']
-                                print(result['browse'], end="\n\n\n")
+                                # print(result['browse'], end="\n\n\n")
                             
                             if 'spatialBounds' in result and result['spatialBounds']:
                                 #print("Coordinates: ", result['spatialCoverage']['coordinates'][0])
@@ -147,7 +166,8 @@ def get_imagery(request):
                                 'publishDate': publishDate,
                                 'cloudCover': cloudCover,
                                 'displayImagesId': displayId,
-                                'spatialBounds': spatialBounds
+                                'spatialBounds': spatialBounds,
+                                'overlayPathBands': overlayPathBands
                             }
                             
                             # Обновляем данные в screenInfo для текущего extractDisplayId
@@ -234,5 +254,15 @@ def get_size(request):
         size = data.get('size', {})
         request.session['size'] = size
         
+
+        return JsonResponse({'success': True})
+    
+def get_band(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+
+        band = data.get("band", {})
+        print("band: ", band)
+        request.session['band'] = band
 
         return JsonResponse({'success': True})

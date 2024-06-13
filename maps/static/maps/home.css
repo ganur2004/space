@@ -175,7 +175,7 @@ body {
     text-align: left;
 }
 
-.filter-div-input input {
+.filter-div-input input, .filter-div-input select {
     width: 90%;
     height: 30px;
     border-radius: 5px;
@@ -236,7 +236,14 @@ body {
 }
 
 #result-div {
+    height: fit-content;
+}
+
+#result-div-images {
+    margin-top: 20px;
+    width: 100%;
     overflow-y: scroll;
+    height: 80vh;
 }
 
 .rectangle-icon {
