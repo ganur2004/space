@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            var imagesDiv = document.getElementById('result-div');
+            var imagesDiv = document.getElementById('result-div-images');
             imagesDiv.innerHTML = '';
 
             for (var displayId in data.screenInfo) {
@@ -147,7 +147,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     var folderDivWithCheckbox = document.createElement('div');
                     folderDivWithCheckbox.className = 'folder-with-checkbox';
                     imagesDiv.appendChild(folderDivWithCheckbox);
-                    var inputCheckbox;
                     var folderDiv = document.createElement('div');
                     folderDiv.className = 'folder';
                     folderDivWithCheckbox.appendChild(folderDiv);
@@ -173,6 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         var overlaySpec = screen.overlaySpec;
                         var displayImageId = screen.displayImagesId;
                         imageUrlList.push(imageUrl);
+                        var inputCheckbox;
 
                         var info = {
                             imageUrl: imageUrl,
@@ -190,6 +190,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         inputCheckbox = document.createElement('input');
                         inputCheckbox.type = 'checkbox';
+                        inputCheckbox.id = "input-checkbox";
                         imagesContainerChild.appendChild(inputCheckbox);
 
                         var imagesContainerElement = document.createElement('div');
@@ -247,9 +248,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             isFirstImage = false;
                             var layer = L.tileLayer(overlayPath, bounds).addTo(map);
                             selectedLayers[displayImageId] = layer;
+                        } else {
+                            inputCheckbox.checked = false;
                         }
 
                         inputCheckbox.addEventListener('change', function() {
+
                             var displayImageId = this.parentElement.id;
     
                             if (this.checked) {
@@ -322,18 +326,38 @@ document.addEventListener('DOMContentLoaded', function() {
         selectedLayers = {};
     }
 
+    // function updateMap() {
+    //     for (var displayImageId in selectedImages) {
+    //         var imageInfo = selectedImages[displayImageId];
+    //         var overlayPath = imageInfo.overlayPath;
+    //         var spatialCoverage = imageInfo.spatialCoverage;
+    //         var spatialBounds = imageInfo.spatialBounds;
+
+    //         var bounds = L.latLngBounds(
+    //             L.latLng(spatialBounds[0][1]+0.5, spatialBounds[0][0]+0.5),
+    //             L.latLng(spatialBounds[2][1]-0.5, spatialBounds[2][0]-0.5)
+    //         );
+
+    //         if (!selectedLayers[displayImageId]) {
+    //             var layer = L.tileLayer(overlayPath, bounds).addTo(map);
+    //             selectedLayers[displayImageId] = layer;
+    //         } else {
+    //             selectedLayers[displayImageId].setUrl(overlayPath);
+    //         }
+    //     }
+    // }
+
     function updateMap() {
         for (var displayImageId in selectedImages) {
             var imageInfo = selectedImages[displayImageId];
             var overlayPath = imageInfo.overlayPath;
-            var spatialCoverage = imageInfo.spatialCoverage;
             var spatialBounds = imageInfo.spatialBounds;
-
+    
             var bounds = L.latLngBounds(
-                L.latLng(spatialBounds[0][1]+0.5, spatialBounds[0][0]+0.5),
-                L.latLng(spatialBounds[2][1]-0.5, spatialBounds[2][0]-0.5)
+                L.latLng(spatialBounds[0][1] + 0.5, spatialBounds[0][0] + 0.5),
+                L.latLng(spatialBounds[2][1] - 0.5, spatialBounds[2][0] - 0.5)
             );
-
+    
             if (!selectedLayers[displayImageId]) {
                 var layer = L.tileLayer(overlayPath, bounds).addTo(map);
                 selectedLayers[displayImageId] = layer;
@@ -342,6 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
+    
 
     function showRectangle(displayId) {
         if (rectangle) {
@@ -444,9 +469,122 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function handleButtonClick() {
+        var selectElement = document.getElementById('select-bands');
+        selectElement.selectedIndex = 0;
         addFilterButton();
+        // selectBands();
         sendCoordinates();
     }
+
+    function selectBands() {
+        var mapLegend = document.getElementById('map-legend');
+        var maplegendlist = ['nbr', 'ndmi', 'ndsi', 'ndvi', 'savi'];
+        deleteLayer();
+        var selectBand = document.getElementById('select-bands').value;
+        selectBand = selectBand || "reflectivecolor";
+        if (maplegendlist.includes(selectBand)) {
+            mapLegend.style.display = "block";
+        } else {
+            mapLegend.style.display = "none"; // Скрываем mapLegend, если выбранная полоса не входит в массив
+        }
+        fetchDataBand(selectBand);
+    }
+    
+
+    function fetchDataBand(band) {
+        fetch('/maps/get_band/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                band: band
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            for (var displayImageId in selectedLayers) {
+                map.removeLayer(selectedLayers[displayImageId]);
+            }
+            selectedLayers = {};
+            // selectedImages = {};
+        
+            for (var displayId in data.screenInfo) {
+                if (displayId) {
+                    var screenInfo = data.screenInfo[displayId];
+                    var isFirstImage = true;
+        
+                    screenInfo.screenInfoDate.forEach(screen => {
+                        var inputCheckbox = document.getElementById(`input-checkbox`);
+                        var imageUrl = screen.imageUrl;
+                        var spatialCoverage = screen.spatialCoverage;
+                        var overlayPath = screen.overlayPath;
+                        var spatialBounds = screen.spatialBounds;
+                        var displayImageId = screen.displayImagesId;
+
+                        var info = {
+                            imageUrl: imageUrl,
+                            overlayPath: overlayPath,
+                            spatialCoverage: spatialCoverage,
+                            spatialBounds: spatialBounds
+                        };
+        
+                        if (isFirstImage) {
+                            console.log("band data if");
+                            var bounds = L.latLngBounds(
+                                L.latLng(spatialBounds[0][1] + 0.5, spatialBounds[0][0] + 0.5),
+                                L.latLng(spatialBounds[2][1] - 0.5, spatialBounds[2][0] - 0.5)
+                            );
+                            selectedImages[displayImageId] = info;
+                            // inputCheckbox.checked = false;
+                            isFirstImage = false;
+                            var layer = L.tileLayer(overlayPath, bounds).addTo(map);
+                            selectedLayers[displayImageId] = layer;
+                        } else {
+                            console.log("band data else");
+                            inputCheckbox.checked = false;
+                        }
+
+        
+                        imageInfo[displayImageId] = info;
+                        // selectedImages[displayImageId] = info;
+        
+                        // Удаляем старый обработчик перед добавлением нового
+                        // if (inputCheckbox) {
+                        //     var newCheckbox = inputCheckbox.cloneNode(true);
+                        //     inputCheckbox.parentNode.replaceChild(newCheckbox, inputCheckbox);
+                        //     inputCheckbox = newCheckbox;
+                        // } else {
+                        //     inputCheckbox = document.createElement('input');
+                        //     inputCheckbox.type = 'checkbox';
+                        //     inputCheckbox.id = `input-checkbox`;
+                        //     document.body.appendChild(inputCheckbox); // Пример добавления на страницу
+                        // }
+        
+                        // inputCheckbox.addEventListener('change', function () {
+                        //     var displayImageId = this.parentElement.id;
+        
+                        //     if (this.checked) {
+                        //         selectedImages[displayImageId] = imageInfo[displayImageId];
+                        //     } else {
+                        //         delete selectedImages[displayImageId];
+                        //         if (selectedLayers[displayImageId]) {
+                        //             map.removeLayer(selectedLayers[displayImageId]);
+                        //             delete selectedLayers[displayImageId];
+                        //         }
+                        //     }
+                        //     updateMap();
+                        // });
+                    });
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+    
 
     document.getElementById('start-date').addEventListener('change', addFilterButton);
     document.getElementById('end-date').addEventListener('change', addFilterButton);
@@ -454,6 +592,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('max-value').addEventListener('input', addFilterButton);
     document.getElementById('checkbox-unkdown').addEventListener('change', addFilterButton);
     document.getElementById('max-results').addEventListener('input', addFilterButton);
+    document.getElementById('select-bands').addEventListener('change', selectBands);
 
     // Функция для получения CSRF токена
     function getCookie(name) {
@@ -535,6 +674,52 @@ document.addEventListener('DOMContentLoaded', function() {
         if (handle === 1) {
             maxValue.value = Math.round(values[1]);
         }
+    });
+
+    const selectElement = document.getElementById('select-bands');
+    const infoIcon = document.getElementById('icon-info');
+    const infoModal = document.getElementById('info-modal');
+
+    const infoText = {
+        reflectivecolor: 'Отражающий цвет: Спутник Landsat 8 измеряет различные диапазоны длин волн в электромагнитном спектре. Каждый из этих диапазонов называется каналы, а всего на спутнике Landsat 8 11 каналов. Первые 7 из этих каналов относятся к видимой и инфракрасной частям спектра и широко известны как "отражающие каналы" и регистрируются операционным наземным тепловизором (OLI) на борту спутника Landsat 8.',
+        thermalbrowse: 'Термальное изображение - канал 10: Каналы 10 и 11 относятся к тепловому инфракрасному диапазону, или TIR – они позволяют видеть тепло. Вместо того, чтобы измерять температуру воздуха, как это делают метеостанции, они измеряют температуру самой земли, которая часто намного горячее.',
+        qualitybrowse: 'Обзор качества: Quality Browse - это термин, который используется для описания визуализации или анализа качества данных, обычно спутниковых изображений или другой дистанционно получаемой информации.',
+        cir: 'Цветное инфракрасное изображение - каналы 5, 4, 3: В цветных инфракрасных изображениях (CIR) каналы используются следующим образом: ближний инфракрасный (канал 5) отображается как красный, красный (канал 4) отображается как зеленый, и зеленый (канал 3) отображается как синий. Эта комбинация спектральных диапазонов подчеркивает определенные характеристики поверхности Земли, такие как состояние растительности, водоемы и урбанизированные территории.',
+        urban: 'Ложные цвета для городских территорий - каналы 7, 6, 5: В изображениях с ложными цветами для городских территорий (False Color Urban) каналы используются следующим образом: средний инфракрасный (канал 7) отображается как красный, ближний инфракрасный (канал 6) отображается как зеленый, и ближний инфракрасный (канал 5) отображается как синий. Эта комбинация спектральных диапазонов подчеркивает особенности урбанизированных зон.',
+        vegetationanalysis: 'Ложные цвета для анализа растительности - каналы 6, 5, 4: В изображениях с ложными цветами для анализа растительности (False Color Vegetation Analysis) каналы используются следующим образом: ближний инфракрасный (канал 6) отображается как красный, ближний инфракрасный (канал 5) отображается как зеленый, и красный (канал 4) отображается как синий. Эта комбинация спектральных диапазонов позволяет более эффективно анализировать растительный покров.',
+        naturalcolor: 'Естественный цвет - каналы 4, 3, 2: В изображениях естественного цвета (Natural Color) каналы используются следующим образом: красный (канал 4) отображается как красный, зеленый (канал 3) отображается как зеленый, и синий (канал 2) отображается как синий. Эта комбинация спектральных диапазонов создает изображения, которые имеют вид, похожий на то, что видит человеческий глаз.',
+        nir: 'Ближний инфракрасный - канал 5: Ближний инфракрасный (Near Infrared, NIR) - канал 5 (Band 5) описывает спектральный канал, используемый в спутниковой или аэрофотосъемке для измерения инфракрасного излучения, невидимого для человеческого глаза. Канал 5 (NIR) часто используется для анализа растительного покрова, водных ресурсов и детектирования изменений на земной поверхности.',
+        nbr: '<p>Нормализованный коэффициент ожогов (Normalized Burn Ratio, NBR) - это индекс, используемый для оценки степени повреждения растительности после пожаров, основанный на данных многоспектральных изображений.</p><pre><code>NBR = (NIR - SWIR) / (NIR + SWIR)</code></pre><p>Где:</p><ul><li><strong>NIR</strong> - значения инфракрасного излучения, близкого к видимому спектру (ближний инфракрасный)</li><li><strong>SWIR</strong> - значения коротковолнового инфракрасного излучения</li></ul><p>Значения NBR варьируются от -1 до 1.</p>',
+        ndmi: '<p>Нормализованный индекс различия влаги (Normalized Difference Moisture Index, NDMI) - это индекс, используемый для оценки содержания влаги в растительности и почве на основе данных многоспектральных изображений.</p><pre><code>NDMI = (NIR - SWIR) / (NIR + SWIR)</code></pre><p>Где:</p><ul><li><strong>NIR</strong> - значения инфракрасного излучения, близкого к видимому спектру (ближний инфракрасный)</li><li><strong>SWIR</strong> - значения коротковолнового инфракрасного излучения</li></ul><p>Значения NDMI могут использоваться для определения влажности растительности и почвы, что позволяет анализировать условия засухи, состояние растительного покрова и другие экологические параметры.</p>',
+        ndsi: '<p>Нормализованный индекс различия снега (Normalized Difference Snow Index, NDSI) - это индекс, используемый для обнаружения снега на многоспектральных изображениях.</p><pre><code>NDSI = (Green - SWIR) / (Green + SWIR)</code></pre><p>Где:</p><ul><li><strong>Green</strong> - значения зеленого канала изображения</li><li><strong>SWIR</strong> - значения коротковолнового инфракрасного излучения</li></ul><p>Высокие значения NDSI обычно свидетельствуют о наличии снега, так как снег отражает большую часть зеленого и коротковолнового инфракрасного излучения.</p>',
+        ndvi: '<p>Normalized Difference Vegetation Index (NDVI) - нормализованный индекс различия вегетации, это индекс, который используется для оценки зеленой растительности на многоспектральных изображениях.</p><pre><code>NDVI = (NIR - Red) / (NIR + Red)</code></pre><p>Где:</p><ul><li><strong>NIR</strong> - значения инфракрасного излучения близкого к видимому спектру (ближний инфракрасный)</li><li><strong>Red</strong> - значения красного канала изображения</li></ul><p>Высокие значения NDVI обычно указывают на наличие здоровой растительности, в то время как низкие значения могут указывать на отсутствие или стресс растительности.</p>',
+        savi: '<p>Soil Adjusted Vegetation Index (SAVI) - это индекс, который подобен NDVI, но учитывает влияние почвы на индексы вегетации, что делает его более надежным для оценки.</p><pre><code>SAVI = ((NIR - Red) * (1 + L)) / (NIR + Red + L)</code></pre><p>Где:</p><ul><li><strong>NIR</strong> - значения инфракрасного излучения близкого к видимому спектру (ближний инфракрасный)</li><li><strong>Red</strong> - значения красного канала изображения</li><li><strong>L</strong> - константа, обычно принимающая значение от 0 до 1 и используемая для коррекции влияния почвы на индекс вегетации</li></ul>'
+    };
+
+    infoIcon.addEventListener('mouseover', function () {
+        const selectedValue = selectElement.value;
+        infoModal.innerHTML = infoText[selectedValue] || 'Выберите опцию для получения информации';
+        const rect = infoIcon.getBoundingClientRect();
+        let right = window.innerWidth - rect.right;
+        let top = rect.bottom + window.scrollY;
+
+        // // Проверка, выходит ли модальное окно за пределы экрана справа
+        // if (left + infoModal.offsetWidth >= window.innerWidth) {
+        //     left = window.innerWidth - infoModal.offsetWidth + 500; // Отступ 10px от края
+        // }
+
+        // Проверка, выходит ли модальное окно за пределы экрана снизу
+        if (top + infoModal.offsetHeight > window.innerHeight) {
+            top = rect.top + window.scrollY - infoModal.offsetHeight - 10; // Отступ 10px от иконки
+        }
+
+        infoModal.style.right = `${right}px`;
+        infoModal.style.top = `${top}px`;
+        infoModal.style.display = 'block';
+    });
+
+    infoIcon.addEventListener('mouseout', function () {
+        infoModal.style.display = 'none';
     });
 });
 

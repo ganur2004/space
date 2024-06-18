@@ -26,7 +26,25 @@ def get_imagery(request):
         longitude = float(data.get('longitude'))
         stored_filters = request.session.get('filters', {})
         size = request.session.get('size', {})
+        band = request.session.get('band', 'reflectivecolor')
+        print("size: ", size)
+        print("bandband: ", band)
         current_date = datetime.now().strftime('%Y-%m-%d')
+        bandList = {
+            "reflectivecolor": 0,
+            "thermalbrowse": 1,
+            "qualitybrowse": 2,
+            "cir": 3,
+            "urban": 4,
+            "vegetationanalysis": 5,
+            "naturalcolor": 6,
+            "nir": 7,
+            "nbr": 8,
+            "ndmi": 9,
+            "ndsi": 10,
+            "ndvi": 11,
+            "savi": 12
+        }
 
         startDate = stored_filters.get('startDate', '2024-01-01')
         endDate = stored_filters.get('endDate', current_date)
@@ -97,6 +115,7 @@ def get_imagery(request):
                 imageCoordinates = []
                 entityId = []
                 screenInfo = {}
+                browse = {}
                 for result in scenes['results']:
                     imageCoordinate = []
                     screenInfoDate = {}
@@ -104,6 +123,7 @@ def get_imagery(request):
                     publishDate = None
                     spatialCoverage = None
                     overlayPath = None
+                    overlayPathBands = None
                     
                     if 'publishDate' in result and result['publishDate']:
                         #print("PublishDate: ", result['publishDate'])
@@ -121,13 +141,14 @@ def get_imagery(request):
                                 cloudCover = 0
 
                             if 'browse' in result and result['browse']:
+                                browse[displayId] = result['browse']
                                 # print("Photo url: ", result['browse'][0]['overlayPath'])
                                 overlayPath = result['browse'][0]['overlayPath']
 
                             if 'browse' in result and result['browse']:
                                 # print("Photo url: ", result['browse'][0]['browsePath'])
                                 imageUrl = result['browse'][0]['browsePath']
-                                print(result['browse'], end="\n\n\n")
+                                # print(result['browse'], end="\n\n\n")
                             
                             if 'spatialBounds' in result and result['spatialBounds']:
                                 #print("Coordinates: ", result['spatialCoverage']['coordinates'][0])
@@ -147,7 +168,8 @@ def get_imagery(request):
                                 'publishDate': publishDate,
                                 'cloudCover': cloudCover,
                                 'displayImagesId': displayId,
-                                'spatialBounds': spatialBounds
+                                'spatialBounds': spatialBounds,
+                                'overlayPathBands': overlayPathBands
                             }
                             
                             # Обновляем данные в screenInfo для текущего extractDisplayId
@@ -157,7 +179,8 @@ def get_imagery(request):
                                 screenInfo[extractDisplayId] = {
                                     'screenInfoDate': [screenInfoDate]
                                 }
-                    
+        request.session['screenInfo'] = screenInfo
+        request.session['browse'] = browse
 
         return JsonResponse({'screenInfo': screenInfo})
     else:
@@ -236,3 +259,48 @@ def get_size(request):
         
 
         return JsonResponse({'success': True})
+    
+
+def get_band(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        band = data.get("band", 'reflectivecolor')
+        request.session['band'] = band
+        browse = request.session.get('browse', {})
+        
+        #print("browse: ", browse)
+        screenInfo = request.session.get('screenInfo', {})
+        #print("Screeninfo", screenInfo)
+        band_list = {
+            "reflectivecolor": 0,
+            "thermalbrowse": 1,
+            "qualitybrowse": 2,
+            "cir": 3,
+            "urban": 4,
+            "vegetationanalysis": 5,
+            "naturalcolor": 6,
+            "nir": 7,
+            "nbr": 8,
+            "ndmi": 9,
+            "ndsi": 10,
+            "ndvi": 11,
+            "savi": 12
+        }
+
+        #print(screenInfo)
+
+        for display_id in screenInfo:
+            screenInfoDisplay = screenInfo[display_id]
+            for screen in screenInfoDisplay["screenInfoDate"]:
+                print(screen)
+                overlayPath = browse[screen['displayImagesId']][band_list[band]]['overlayPath']
+                screen['overlayPath'] = overlayPath
+
+        
+        request.session['screenInfo'] = screenInfo
+        
+        return JsonResponse({'screenInfo': screenInfo})
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
+
