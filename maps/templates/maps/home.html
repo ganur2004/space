@@ -24,13 +24,52 @@
                 <div class="logo">Space</div>
             </div>
             <div id="map"></div>
+            <div class="map-legend" id="map-legend">
+                <svg width="528" height="32">
+                  <g transform="translate(0,16)">
+                    <!-- Описание каждого прямоугольника и его текстовой метки -->
+                    <rect fill="#40004b" width="48" height="16" y="0" x="0"></rect>
+                    <text dy="-4" x="24" text-anchor="middle">-1</text>
+              
+                    <rect fill="#762a83" width="48" height="16" y="0" x="48"></rect>
+                    <text dy="-4" x="72" text-anchor="middle">-0.8</text>
+              
+                    <rect fill="#9970ab" width="48" height="16" y="0" x="96"></rect>
+                    <text dy="-4" x="120" text-anchor="middle">-0.6</text>
+              
+                    <rect fill="#c2a5cf" width="48" height="16" y="0" x="144"></rect>
+                    <text dy="-4" x="168" text-anchor="middle">-0.4</text>
+              
+                    <rect fill="#e7d4e8" width="48" height="16" y="0" x="192"></rect>
+                    <text dy="-4" x="216" text-anchor="middle">-0.2</text>
+              
+                    <rect fill="#f7f7f7" width="48" height="16" y="0" x="240"></rect>
+                    <text dy="-4" x="264" text-anchor="middle">0</text>
+              
+                    <rect fill="#d9f0d3" width="48" height="16" y="0" x="288"></rect>
+                    <text dy="-4" x="312" text-anchor="middle">0.2</text>
+              
+                    <rect fill="#a6dba0" width="48" height="16" y="0" x="336"></rect>
+                    <text dy="-4" x="360" text-anchor="middle">0.4</text>
+              
+                    <rect fill="#5aae61" width="48" height="16" y="0" x="384"></rect>
+                    <text dy="-4" x="408" text-anchor="middle">0.6</text>
+              
+                    <rect fill="#1b7837" width="48" height="16" y="0" x="432"></rect>
+                    <text dy="-4" x="456" text-anchor="middle">0.8</text>
+              
+                    <rect fill="#00441b" width="48" height="16" y="0" x="480"></rect>
+                    <text dy="-4" x="504" text-anchor="middle">1</text>
+                  </g>
+                </svg>
+              </div>
+              
         </div>
         <div class="working-panel">
             <div id="title">Рабочая панель</div>
             <div class="subcategories">
                 <a id="filter" href="#">Фильтр</a>
                 <a id="result" href="#">Результат</a>
-                <a id="coef" href="#">Коэффициенты</a>
             </div>
             <div class="subcategories-div">
                 <div id="filter-div">
@@ -71,41 +110,28 @@
                 </div>
                 <div id="result-div">
                     <div class="filter-div-input">
-                        <span id="filter-div-input-title">Выберите расчет</span>
-                        <select name="select-bands" id="select-bands">
-                            <option value="reflectivecolor">Reflective Color</option>
-                            <option value="thermalbrowse">Thermal Browse - Band 10</option>
-                            <option value="qualitybrowse">Quality Browse</option>
-                            <option value="cir">Цветное инфракрасное изображение - каналы 5, 4, 3</option>
-                            <option value="urban">Ложные цвета для городских территорий - каналы 7, 6, 5</option>
-                            <option value="vegetationanalysis">Ложные цвета для анализа растительности - каналы 6, 5, 4</option>
-                            <option value="naturalcolor">Естественный цвет - каналы 4, 3, 2</option>
-                            <option value="nir">Ближний инфракрасный - канал 5</option>
-                            <option value="nbr">Нормализованный коэффициент ожогов</option>
-                            <option value="ndmi">Нормализованный индекс различия влаги</option>
-                            <option value="ndsi">Нормализованный индекс различия снега</option>
-                            <option value="ndvi">Нормализованный индекс различия вегетации</option>
-                            <option value="savi">Индекс коррекции почвы вегетацией</option>
-                        </select>
+                        <span id="filter-div-input-title">Выберите каналы или расчеты</span>
+                        <div class="select-with-info">
+                            <select name="select-bands" id="select-bands">
+                                <option value="reflectivecolor">Отражающий цвет</option>
+                                <option value="thermalbrowse">Термальное изображение - канал 10</option>
+                                <option value="qualitybrowse">Обзор качества</option>
+                                <option value="cir">Цветное инфракрасное изображение (CIR) - каналы 5, 4, 3</option>
+                                <option value="urban">Ложные цвета для городских территорий - каналы 7, 6, 5</option>
+                                <option value="vegetationanalysis">Ложные цвета для анализа растительности - каналы 6, 5, 4</option>
+                                <option value="naturalcolor">Естественный цвет - каналы 4, 3, 2</option>
+                                <option value="nir">Ближний инфракрасный (NIR) - канал 5</option>
+                                <option value="nbr">Нормализованный коэффициент ожогов (NBR)</option>
+                                <option value="ndmi">Нормализованный индекс различия влаги (NDMI)</option>
+                                <option value="ndsi">Нормализованный индекс различия снега (NDSI)</option>
+                                <option value="ndvi">Нормализованный индекс различия вегетации (NDVI)</option>
+                                <option value="savi">Индекс коррекции почвы вегетацией (SAVI)</option>
+                            </select>
+                            <div class="fas fa-info-circle" id="icon-info"></div>
+                            <div id="info-modal" class="info-modal"></div>
+                        </div>
                     </div>
                     <div id="result-div-images">Результатов пока нет</div>
-                </div>
-                <div id="coef-div">
-                    <div class="filter-div-input">
-                        <span id="filter-div-input-title">Выберите расчет</span>
-                        <select name="select-bands" id="select-bands">
-                            <option value="cir">Цветное инфракрасное изображение - каналы 5, 4, 3</option>
-                            <option value="urban">Ложные цвета для городских территорий - каналы 7, 6, 5</option>
-                            <option value="vegetationanalysis">Ложные цвета для анализа растительности - каналы 6, 5, 4</option>
-                            <option value="naturalcolor">Естественный цвет - каналы 4, 3, 2</option>
-                            <option value="nir">Ближний инфракрасный - канал 5</option>
-                            <option value="nbr">Нормализованный коэффициент ожогов</option>
-                            <option value="ndmi">Нормализованный индекс различия влаги</option>
-                            <option value="ndsi">Нормализованный индекс различия снега</option>
-                            <option value="ndvi">Нормализованный индекс различия вегетации</option>
-                            <option value="savi">Индекс коррекции почвы вегетацией</option>
-                        </select>
-                    </div>
                 </div>
             </div>
         </div>
